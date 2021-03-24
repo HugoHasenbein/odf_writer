@@ -1,0 +1,12 @@
+lib/odf_writer.rb
+lib/odf_writer/document.rb
+lib/odf_writer/table.rb
+lib/odf_writer/section.rb
+lib/odf_writer/file_ops.rb
+lib/odf_writer/hash_gsub.rb
+odf_writer.gemspec
+README.textile
+test/test.odt
+test/sections.odt
+test/test.rb
+Manifest
