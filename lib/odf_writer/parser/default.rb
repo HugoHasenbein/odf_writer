@@ -103,10 +103,10 @@ module ODFWriter
       # initialize
       #
       ####################################################################################
-      def initialize(text, template_node, opts={})
+      def initialize(text, node, opts={})
         @text                = text
         @paragraphs          = []
-        @template_node       = template_node
+        @template_node       = node
         @doc                 = opts[:doc]
         @remove_classes      = opts[:remove_classes]
         @remove_class_prefix = opts[:remove_class_prefix]

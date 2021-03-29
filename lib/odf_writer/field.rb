@@ -16,31 +16,35 @@ module ODFWriter
     
     ######################################################################################
     #
-    # attribute accessors
+    # constants
     #
     ######################################################################################
-    attr_accessor :name, :data_field, :remove_classes, :remove_class_prefix, 
-                  :remove_class_suffix
-                  
+    attr_accessor :name
+    
     ######################################################################################
     #
     # initialize
     #
     ######################################################################################
-    def initialize(opts, &block)
+    def initialize(options, &block)
     
-      @name                = opts[:name]
-      @data_field          = opts[:data_field]
+      @name                = options[:name]
+      @value               = options[:value]
+      @field               = options[:field]
+      @key                 = @field || @name
+      @proc                = options[:proc]
       
-      @remove_classes      = opts[:remove_classes]
-      @remove_class_prefix = opts[:remove_class_prefix]
-      @remove_class_suffix = opts[:remove_class_suffix]
+      @remove_classes      = options[:remove_classes]
+      @remove_class_prefix = options[:remove_class_prefix]
+      @remove_class_suffix = options[:remove_class_suffix]
       
-      unless @value = opts[:value]
+      @value ||= @proc
+      
+      unless @value
         if block_given?
-          @block = block
+          @value = block
         else
-          @block = lambda { |item| self.extract_value(item) }
+          @value = lambda { |item, key| field(item, key) }
         end
       end
     end #def
@@ -50,49 +54,35 @@ module ODFWriter
     # replace!
     #
     ######################################################################################
-    def replace!(content, data_item = nil)
-    
+    def replace!(content, item = nil)
       txt = content.inner_html
-      
-      val = get_value(data_item)
-      
-      txt.gsub!(to_placeholder, sanitize(val))
+      txt.gsub!(placeholder, sanitize(value(item)))
       content.inner_html = txt
-      
     end #def
     
     ######################################################################################
     #
-    # get_value
+    # value
     #
     ######################################################################################
-    def get_value(data_item = nil)
-      @value || @block&.call(data_item) || ''
+    def value(item = nil)
+      @value.is_a?(Proc) ? @value.call(item, @key) : @value
     end #def
     
     ######################################################################################
     #
-    # extract_value
+    # field
     #
     ######################################################################################
-    def extract_value(data_item)
-    
-      return unless data_item
-      
-      key = @data_field || @name
-      
-      if data_item.is_a?(Hash)
-        data_item[key] || data_item[key.to_s.downcase] || data_item[key.to_s.upcase] || data_item[key.to_s.downcase.to_sym]
-        
-      elsif data_item.respond_to?(key.to_s.downcase.to_sym)
-        Rails.logger.info data_item.send(key.to_s.downcase.to_sym)
-        data_item.send(key.to_s.downcase.to_sym)
-        
+    def field(item, key)
+      case item
+      when NilClass
+        key
+      when Hash
+        hash_value(item, key)
       else
-        #raise "Can't find field [#{key}] in this #{data_item.class}"
-        Rails.logger.info "Can't find field [#{key}] in this #{data_item.class}"
+        item_field(item, key)
       end
-      
     end #def
     
     ######################################################################################
@@ -102,18 +92,40 @@ module ODFWriter
     ######################################################################################
     private
     
-    def to_placeholder
-      if DELIMITERS.is_a?(Array)
-        "#{DELIMITERS[0]}#{@name.to_s.upcase}#{DELIMITERS[1]}"
-      else
-        "#{DELIMITERS}#{@name.to_s.upcase}#{DELIMITERS}"
-      end
+    ######################################################################################
+    # hash_value
+    ######################################################################################
+    def hash_value(hash, key)
+      hash[key.to_s]            || hash[key.to_sym] || 
+      hash[key.to_s.underscore] || hash[key.to_s.underscore.to_sym]
     end #def
     
-    def sanitize(txt)
-      txt = html_escape(txt)
-      txt = odf_linebreak(txt)
-      txt
+    ######################################################################################
+    # item_field
+    ######################################################################################
+    def item_field(item, field)
+      item.try(field.to_s.to_sym) || 
+      item.try(field.to_s.underscore.to_sym)
+    end #def
+    
+    ######################################################################################
+    # placeholder
+    ######################################################################################
+    def placeholder
+      "#{DELIMITERS[0]}#{@name.to_s.upcase}#{DELIMITERS[1]}"
+    end #def
+    
+    ######################################################################################
+    # sanitize
+    ######################################################################################
+    def sanitize(text)
+      # if we get some object, which is not a string, Numeric or the like
+      # f.i. a Hash or an Arry or a CollectionProxy or an image then return @key to avoid
+      # uggly errors
+      return @key.to_s if text.respond_to?(:each)
+      text = html_escape(text)
+      text = odf_linebreak(text)
+      text
     end #def
     
     HTML_ESCAPE = { '&' => '&amp;',  '>' => '&gt;',   '<' => '&lt;', '"' => '&quot;' }

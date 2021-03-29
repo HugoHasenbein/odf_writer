@@ -5,7 +5,7 @@ module ODFWriter
   # TextReader: find all texts and set name
   #
   ########################################################################################
-  class TextReader
+  class TextReader < FieldReader
     
     attr_accessor :name
     
@@ -20,24 +20,10 @@ module ODFWriter
     
     ######################################################################################
     #
-    # get_texts
+    # paths
     #
     ######################################################################################
-    def get_texts( doc )
-      #
-      # get all text elements matching {TEXT} pattern
-      #
-      #doc.xpath(".//office:text"         ).text.scan(/(?<=\{)[A-Z0-9_]+?(?=\})/) + 
-      #doc.xpath(".//office:master-styles").text.scan(/(?<=\{)[A-Z0-9_]+?(?=\})/)
-      doc.xpath("./*").text.scan(/(?<=\{)[A-Z0-9_]+?(?=\})/)
-    end #def
-    
-    ######################################################################################
-    #
-    # get_paths: limit to paths with ancestors 'text '(content.xml) and master-styles (styles.xml)
-    #
-    ######################################################################################
-    def get_paths( doc, root=:root)
+    def paths( file, doc)
       
       # find nodes with matching field elements matching [FIELD] pattern
       nodes = doc.xpath("//text()").select{|node| scan(node).present? }
@@ -46,7 +32,7 @@ module ODFWriter
       paths = nil
       nodes.each do |node|
         leaf  = {:texts => scan(node)}
-        paths = PathFinder.trail(node, leaf, :root => root, :paths => paths)
+        paths = PathFinder.trail(node, leaf, :root => file, :paths => paths)
       end #each
       paths.to_h
       
@@ -60,9 +46,9 @@ module ODFWriter
     
     def scan(node)
       if name 
-        node.text.scan(/(?<=\{)#{name.upcase}(?=\})/)
+        node.text.scan(/(?<=#{Regexp.escape Text::DELIMITERS[0]})#{name.upcase}(?=#{Regexp.escape Text::DELIMITERS[1]})/)
       else
-        node.text.scan(/(?<=\{)[A-Z0-9_]+?(?=\})/)
+        node.text.scan(/(?<=#{Regexp.escape Text::DELIMITERS[0]})[A-Z0-9_]+?(?=#{Regexp.escape Text::DELIMITERS[1]})/)
       end
     end #def
     

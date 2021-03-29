@@ -5,7 +5,7 @@ module ODFWriter
   # Image: replace images
   #
   ########################################################################################
-  class Image
+  class Image < Field
   
     ######################################################################################
     #
@@ -16,84 +16,48 @@ module ODFWriter
     
     ######################################################################################
     #
-    # attribute accessors
-    #
-    ######################################################################################
-    attr_accessor :name, :data_field, :data
-                  
-    ######################################################################################
-    #
-    # initialize
-    #
-    ######################################################################################
-    def initialize(opts, &block)
-    
-      @name       = opts[:name]      # name in template
-      @data_field = opts[:data_field]
-      @data       = opts[:data]      # image in memory as hash: filename, width, height, bytes
-      
-      unless @data
-        if block_given?
-          @block = block
-        else
-          #
-          #TODO: self.get_image_data(item) does not yet exist
-          #
-          #@block = lambda { |item| self.get_image_data(item) }
-          @block = lambda { |item|  }
-        end
-      end
-      
-    end #def
-    
-    ######################################################################################
-    #
     # replace!
     #
     ######################################################################################
-    def replace!(doc, manifest, file, data_item=nil )
+    def replace!(doc, manifest, template, item=nil )
     
-      value = get_values(data_item)
+      image_data = value(item)
       
-      if value
-      
+      if is_image?(image_data) 
+        
+        # find placeholder image
         nodes = find_image_nodes( doc )
         return if nodes.blank?
         
+        # find manifest
         man = manifest.xpath("//manifest:manifest") rescue nil
+        return if man.blank?
         
+        # each placeholder image
         nodes.each do |node|
         
-          # we have data in memory with filename
-          path = ::File.join(IMAGE_DIR_NAME, "#{SecureRandom.hex(20).upcase}#{::File.extname(value[:filename])}")
-          mime = Rack::Mime.mime_type(File.extname(value[:filename]))
+          # create unique filename for image in .odt file
+          path = ::File.join(IMAGE_DIR_NAME, "#{SecureRandom.hex(20).upcase}#{::File.extname(image_data[:filename])}")
+          mime = Rack::Mime.mime_type(File.extname(image_data[:filename]))
           
+          # set path and mime type of placeholder image
           node.attribute('href').value = path
-          
           if node.attribute('mime-type').present?
             node.attribute('mime-type').value = mime
           else
             node.set_attribute('mime-type', mime)
           end
           
-          if value[:width] && value[:height]
-            parent = node.parent
-            if parent.name == "frame"
-              width  = parent.attribute('width').value
-              height = parent.attribute('height').value
-              parent.attribute('height').value = recalc_height(:origx => value[:width], :origy => value[:height], :newx => width, :newy => height)
-            end
+          # set width and height of placeholder image
+          parent = node.parent
+          if parent.name == "frame"
+            width  = parent.attribute('width').value
+            height = parent.attribute('height').value
+            parent.attribute('height').value = recalc_height(:x => image_data[:width], :y => image_data[:height], :newx => width, :newy => height)
           end
           
-          if man.present?
-            file_entry = Nokogiri::XML::Node.new('manifest:file-entry', doc)
-            file_entry.set_attribute('manifest:full-path', path)
-            file_entry.set_attribute('manifest:media-type', mime)
-            man.children.after file_entry
-          end
-          
-          file.output_stream.put_next_entry(path)
-          file.output_stream.write value[:bytes]
+          # add image to .odt file
+          add_image_file( image_data[:bytes], path, mime, doc, man, template )
           
         end
       end
@@ -109,24 +73,6 @@ module ODFWriter
       end
     end #def
     
-    
-    def get_values(item = nil)
-      @data.presence || @block.call(item) 
-    end
-    
-    def extract_value(item)
-      return unless data_item
-      
-      key = @data_field || @name
-      
-      if data_item.respond_to?(key.to_s.downcase.to_sym)
-        data_item.send(key.to_s.downcase.to_sym)
-      else
-        raise "Can't find field [#{key}] in this #{data_item.class}"
-      end
-      
-    end #def
-    
     ######################################################################################
     #
     # private
@@ -134,29 +80,58 @@ module ODFWriter
     ######################################################################################
     private
     
+    ######################################################################################
+    # is_image?
+    ######################################################################################
+    def is_image?(obj)
+      obj.is_a?(Hash) && (obj.keys & [:filename, :width, :height, :bytes]).length == 4
+    end #def
+    
+    ######################################################################################
+    # find_image_nodes
+    ######################################################################################
     def find_image_nodes(doc)
       doc.xpath(".//draw:frame[@draw:name='#{@name}']/draw:image")
     end #def
     
-    
+    ######################################################################################
+    # recalc_height
+    ######################################################################################
     def recalc_height(nums)
     
       numericals = {}
       dimensions = {}
       
-      [:origx, :origy, :newx, :newy].each do |v|
+      #remove dimensions like 'px' or 'cm' or 'in' or 'pt'
+      [:x, :y, :newx, :newy].each do |v|
         num = nums[v].to_s.match(/[0-9.]+/)
         numericals[v] = num[0].to_f if num
-        dimensions[v] = nums[v].gsub(/\A[0-9.]+/, "")
+        dimensions[v] = nums[v].to_s.gsub(/\A[0-9.]+/, "")
       end
       
-      if [:origx, :origy, :newx, :newy].all?{|i| numericals[i].present? }
-        y = numericals[:newx] / numericals[:origx] * numericals[:origy]
+      if [:x, :y, :newx, :newy].all?{|i| numericals[i].present? }
+        y = numericals[:newx] / numericals[:x] * numericals[:y]
       end 
       
       y ? "#{'%.3f'%y}#{dimensions[:newy]}" : nums[:newy]
       
     end #def
+    
+    ######################################################################################
+    # add_image_file
+    ######################################################################################
+    def add_image_file(bytes, path, mime, doc, manifest, template )
+    
+      file_entry = Nokogiri::XML::Node.new('manifest:file-entry', doc)
+      file_entry.set_attribute('manifest:full-path', path)
+      file_entry.set_attribute('manifest:media-type', mime)
+      manifest.children.after file_entry
+          
+      template.output_stream.put_next_entry(path)
+      template.output_stream.write bytes
+      
+    end #def
+    
     
   end #class
 end #module

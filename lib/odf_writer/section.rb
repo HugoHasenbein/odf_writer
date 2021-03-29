@@ -8,17 +8,19 @@ module ODFWriter
   class Section
     include Nested
     
-    attr_accessor :collection
+    attr_accessor :name, :collection, :proc
     
     ######################################################################################
     #
     # initialize
     #
     ######################################################################################
-    def initialize(opts)
-      @name       = opts[:name]
-      @field      = opts[:field]
-      @collection = opts[:collection]
+    def initialize(options)
+      @name       = options[:name]
+      @field      = options[:field]
+      @key        = @field || @name
+      @collection = options[:collection]
+      @proc       = options[:proc]
       
       @fields     = []
       @bookmarks  = []
@@ -47,9 +49,9 @@ module ODFWriter
     
       return unless @section_node = find_section_node(doc)
       
-      @collection = get_collection_from_item(row, @field) if row
+      @collection = items(row, @key, @proc) if row
       
-      @collection.each do |data_item|
+      @collection.each do |item|
       
         new_section = get_section_node
         #
@@ -58,19 +60,12 @@ module ODFWriter
         #
         @section_node.before(new_section) 
         
-        @tables.each    { |t| t.replace!(new_section, manifest, file, data_item) }
-        
-        @sections.each  { |s| s.replace!(new_section, manifest, file, data_item) }
-        
-        @texts.each     { |t| t.replace!(new_section, data_item) }
-        
-        @fields.each    { |f| f.replace!(new_section, data_item) }
-        
-        @bookmarks.each { |b| b.replace!(new_section, data_item) }
-        
-        @images.each    { |b| b.replace!(new_section, manifest, file, data_item) }
-        
-        #@section_node.before(new_section) #/experimental
+        @tables.each    { |t| t.replace!(new_section, manifest, file, item) }
+        @sections.each  { |s| s.replace!(new_section, manifest, file, item) }
+        @texts.each     { |t| t.replace!(new_section, item) }
+        @fields.each    { |f| f.replace!(new_section, item) }
+        @bookmarks.each { |b| b.replace!(new_section, item) }
+        @images.each    { |b| b.replace!(new_section, manifest, file, item) }
         
       end
       

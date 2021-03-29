@@ -20,32 +20,20 @@ module ODFWriter
     
     ######################################################################################
     #
-    # get_fields
+    # paths
     #
     ######################################################################################
-    def get_fields( doc )
-      if name 
-        doc.xpath("./*").text.scan(/(?<=\[)#{name.upcase}(?=\])/)
-      else
-        doc.xpath("./*").text.scan(/(?<=\[)[A-Z0-9_]+?(?=\])/)
-      end
-    end #def
-    
-    ######################################################################################
-    #
-    # get_paths: limit to paths with ancestors 'text '(content.xml) and master-styles (styles.xml)
-    #
-    ######################################################################################
-    def get_paths( doc, root=:root)
+    def paths( file, doc)
       
       # find nodes with matching field elements matching [FIELD] pattern
       nodes = doc.xpath("//text()").select{|node| scan(node).present? }
       
+
       # find path for each field
       paths = nil
       nodes.each do |node|
         leaf  = {:fields => scan(node)}
-        paths = PathFinder.trail(node, leaf, :root => root, :paths => paths)
+        paths = PathFinder.trail(node, leaf, :root => file, :paths => paths)
       end #each
       paths.to_h
       
@@ -59,9 +47,9 @@ module ODFWriter
     
     def scan(node)
       if name 
-        node.text.scan(/(?<=\[)#{name.upcase}(?=\])/)
+        node.text.scan(/(?<=#{Regexp.escape Field::DELIMITERS[0]})#{name.upcase}(?=#{Regexp.escape Field::DELIMITERS[1]})/)
       else
-        node.text.scan(/(?<=\[)[A-Z0-9_]+?(?=\])/)
+        node.text.scan(/(?<=#{Regexp.escape Field::DELIMITERS[0]})[A-Z0-9_]+?(?=#{Regexp.escape Field::DELIMITERS[1]})/)
       end
     end #def
     

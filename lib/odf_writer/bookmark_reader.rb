@@ -20,20 +20,10 @@ module ODFWriter
     
     ######################################################################################
     #
-    # get_bookmarks
-    #
-    ######################################################################################
-    def get_bookmarks( doc )
-     #doc.xpath(".//*[self::text:bookmark or self::text:bookmark-start]").map{|node| node.attr("text:name")}
-     doc.xpath("./*[self::text:bookmark or self::text:bookmark-start]").map{|node| node.attr("text:name")}
-    end #def
-    
-    ######################################################################################
-    #
     # get_paths: limit to paths with ancestors 'text '(content.xml) and master-styles (styles.xml)
     #
     ######################################################################################
-    def get_paths( doc, root=:root)
+    def paths( root, doc)
       
       # find nodes with matching field elements matching [BOOKMARK] pattern
       nodes = doc.xpath("//*[self::text:bookmark or self::text:bookmark-start]").select{|node| scan(node).present? }
@@ -58,7 +48,7 @@ module ODFWriter
       if name 
         node.attr("text:name") == name.upcase ? [node.attr("text:name")] : []
       else
-        node.attr("text:name")
+        [node.attr("text:name")]
       end
     end #def
     

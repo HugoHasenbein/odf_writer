@@ -14,28 +14,19 @@ module ODFWriter
     ######################################################################################
     DELIMITERS = %w({ })
     
-    attr_accessor :parser
-    
-    ######################################################################################
-    #
-    # initialize
-    #
-    ######################################################################################
-    # inherited
-    
     ######################################################################################
     #
     # replace!
     #
     ######################################################################################
-    def replace!(doc, data_item = nil)
+    def replace!(content, item = nil)
     
-      return unless node = find_text_node(doc)
+      return unless node = find_text_node(content)
       
-      text_value = get_value(data_item)
+      text = value(item)
       
-      @parser = Parser::Default.new(text_value, node, 
-        :doc                 => doc,
+      @parser = Parser::Default.new(text, node, 
+        :doc                 => content,
         :remove_classes      => @remove_classes,
         :remove_class_prefix => @remove_class_prefix,
         :remove_class_suffix => @remove_class_suffix
@@ -56,18 +47,13 @@ module ODFWriter
     ######################################################################################
     private
     
-    def to_placeholder
-      if DELIMITERS.is_a?(Array)
-        "#{DELIMITERS[0]}#{@name.to_s.upcase}#{DELIMITERS[1]}"
-      else
-        "#{DELIMITERS}#{@name.to_s.upcase}#{DELIMITERS}"
-      end
-    end #def
-    
+    ######################################################################################
+    # find_text_node
+    ######################################################################################
     def find_text_node(doc)
-      texts = doc.xpath(".//text:p[text()='#{to_placeholder}']")
+      texts = doc.xpath(".//text:p[text()='#{placeholder}']")
       if texts.empty?
-        texts = doc.xpath(".//text:p/text:span[text()='#{to_placeholder}']")
+        texts = doc.xpath(".//text:p/text:span[text()='#{placeholder}']")
         if texts.empty?
           texts = nil
         else
@@ -80,5 +66,11 @@ module ODFWriter
       texts
     end #def
     
+    ######################################################################################
+    # placeholder
+    ######################################################################################
+    def placeholder
+      "#{DELIMITERS[0]}#{@name.to_s.upcase}#{DELIMITERS[1]}"
+    end #def
   end #class
 end #module

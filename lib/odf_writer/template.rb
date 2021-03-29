@@ -9,13 +9,26 @@ module ODFWriter
     
     ######################################################################################
     #
-    # constant - we only work and content and styles (contains headers and footers) parts of odf
+    # constants - we only work and content and styles (contains headers and footers) parts of odf
     #
     ######################################################################################
-    CONTENT_FILES = ['content.xml', 'styles.xml']
-    MANIFEST      = 'META-INF/manifest.xml'
-    MANIFEST_FILE = 'manifest.xml'
+    CONTENT_ENTRIES = {
+      "content.xml"  => {:symbol => :content,  :path => "content.xml"},
+      "styles.xml"   => {:symbol => :styles,   :path => "styles.xml" }
+    }.freeze
     
+    CONTENT_FILES = {
+      :content       => {:file => "content.xml",  :path => "content.xml"},
+      :styles        => {:file => "styles.xml",   :path => "styles.xml" }
+    }.freeze
+    
+    MANIFEST       = 'META-INF/manifest.xml'.freeze
+    
+    ######################################################################################
+    #
+    # accessors
+    #
+    ######################################################################################
     attr_accessor :output_stream
     
     ######################################################################################
@@ -23,38 +36,36 @@ module ODFWriter
     # initialize
     #
     ######################################################################################
-    def initialize(template = nil, io: nil)
-      raise "You must provide either a filename or an io: string" unless template || io
-      raise "Template [#{template}] not found." unless template.nil? || ::File.exist?(template)
+    def initialize(path = nil, zip_stream: nil)
+    
+      raise "You must provide either a filename or a zip_stream: string" unless path || zip_stream
+      raise "Template [#{template}] not found." if path && !::File.exist?(path)
       
-      @template = template
-      @io = io
+      @path       = path
+      @zip_stream = zip_stream
     end #def
     
     ######################################################################################
     #
-    # get_content
+    # content
     #
     ######################################################################################
-    def get_content(&block)
+    def content(&block)
     
-      #
-      # open zip file and loop through files in zip file
-      #
-      get_template_entries.each do |entry|
+      entries.each do |entry|
       
-        next if entry.directory?
-        
-        entry.get_input_stream do |is|
-        
-          data = is.sysread
+        if entry.directory?
+          next
           
-          if CONTENT_FILES.include?(entry.name)
-            yield entry.name, get_content_from_data(data)
+        elsif CONTENT_ENTRIES.keys.include?(entry.name)
+          # relevant file with valid file name
+          entry.get_input_stream do |input_stream|
+            file_content = input_stream.sysread
+            yield CONTENT_ENTRIES[entry.name][:symbol], to_xml(file_content)
           end
           
-        end
-      end
+        end #if
+      end #each
     end #def
     
     ######################################################################################
@@ -79,45 +90,39 @@ module ODFWriter
     ######################################################################################
     def update_files(&block)
       
-      manifest = nil
+      # get manifest, in case a file is added
+      @manifest = manifest; digest = Digest::MD5.hexdigest(@manifest)
       
-      #
-      # search manifest.xml
-      #
-      get_template_entries.each do |entry|
+      entries.each do |entry|
       
-        next if entry.directory?
+        # search content files
+        if entry.directory?
+          next
+          
+        # process content files
+        elsif CONTENT_ENTRIES.keys.include?(entry.name)
         
-        entry.get_input_stream do |is|
-          if MANIFEST == entry.name
-            manifest = is.sysread.dup
+          entry.get_input_stream do |input_stream|
+            file_content = input_stream.sysread
+            file_symbol  = CONTENT_ENTRIES[entry.name][:symbol]
+            process_entry(file_symbol, file_content, @manifest, &block)
+            @output_stream.put_next_entry(entry.name)
+            @output_stream.write file_content
+          end #do
+          
+        else
+          entry.get_input_stream do |input_stream|
+            @output_stream.put_next_entry(entry.name)
+            @output_stream.write input_stream.sysread
           end
-        end
-      end
+        end #if
+      end #each
       
-      #
-      # search conten.xml and styles.xml
-      #
-      get_template_entries.each do |entry|
-      
-        next if entry.directory?
-        
-        entry.get_input_stream do |is|
-          data = is.sysread
-            if CONTENT_FILES.include?(entry.name)
-              process_entry(data, manifest, &block)
-            end
-            unless entry.name == MANIFEST
-              @output_stream.put_next_entry(entry.name)
-              @output_stream.write data
-            end
-        end
-      end
-      
-      if manifest
+      # eventually write back content file
+      if @manifest && digest != Digest::MD5.hexdigest(@manifest)
         @output_stream.put_next_entry(MANIFEST)
-        @output_stream.write manifest
-      end
+        @output_stream.write @manifest
+      end #if
       
     end #def
     
@@ -138,38 +143,58 @@ module ODFWriter
     ######################################################################################
     private
     
-    #
-    # get_template_entries: just open zip file or buffer
-    # 
-    def get_template_entries
-    
-      if @template
-        Zip::File.open(@template)
-      else
-        Zip::File.open_buffer(@io.force_encoding("ASCII-8BIT"))
+    ######################################################################################
+    # entries: just open zip file or buffer
+    ######################################################################################
+    def entries
+      if @path
+        Zip::File.open(@path)
+      elsif @zip_stream
+        Zip::File.open_buffer(@zip_stream.force_encoding("ASCII-8BIT"))
       end
     end #def
     
-    #
-    # get_content_from_entry: read data from file
-    # 
-    def get_content_from_data(raw_xml)
+    ######################################################################################
+    # manifest: read manifest 
+    ######################################################################################
+    def manifest
+      manifest = nil
+      entries.each do |entry|
+        next if entry.directory?
+        entry.get_input_stream do |input_stream|
+          if MANIFEST == entry.name
+            manifest = input_stream.sysread.dup
+          end
+        end
+      end
+      manifest
+    end #def
+    
+    ######################################################################################
+    # to_xml
+    ######################################################################################
+    def to_xml(raw_xml)
       Nokogiri::XML(raw_xml)
     end #def
     
-    #
+    ######################################################################################
     # process_entry: provide Nokogiri Object to caller, after having provided a file
-    # 
-    def process_entry(entry, manifest)
-      doc = Nokogiri::XML(entry   ) # { |x| x.noblanks }
-      man = Nokogiri::XML(manifest) # { |x| x.noblanks }
-      yield doc, man
-     #entry.replace(doc.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML))
+    ######################################################################################
+    def process_entry(file_symbol, file_content, manifest)
+    
+      # create xml from file content
+      doc = to_xml(file_content ) # { |x| x.noblanks }
+      man = to_xml(manifest     ) # { |x| x.noblanks }
+      
+      # yield xml
+      yield file_symbol, doc, man
+      
+      # replace file_content and manifest in place
       # remove spurious whitespaces between tags ">  <" becomes "><"
-      entry.replace(doc.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML).squish.gsub(/(?<=>)\s+(?=<)/, ""))
-     # Microsoft Words complains if no trailing newline is present
-      # (save_with: Nokogiri::XML::Node::SaveOptions::AS_XML)
+      file_content.replace(doc.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML).squish.gsub(/(?<=>)\s+(?=<)/, ""))
+      # Microsoft Words complains if no trailing newline is present
       manifest.replace(man.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML))
+      
     end #def
     
   end #class

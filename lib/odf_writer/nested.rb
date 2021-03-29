@@ -7,67 +7,121 @@ module ODFWriter
   ########################################################################################
   module Nested
   
-    def add_field(name, data_field=nil, &block)
-      opts = {:name => name, :data_field => data_field}
-      field = Field.new(opts, &block)
-      @fields << field
+    def add_field(name, options={}, &block)
+      options.merge!(:name => name)
+      @fields << Field.new(options, &block)
     end #def
     alias_method :add_column, :add_field
     
-    def add_bookmark(bookmark_name, data_field=nil, &block)
-      opts = {:name => bookmark_name, :data_field => data_field}
-      bm = Bookmark.new(opts, &block)
-      @bookmarks << bm
+    def add_text(name, options={}, &block)
+      options.merge!(:name => name)
+      @texts << Text.new(options, &block)
     end #def
     
-    def add_image(image_name, &block)
-      opts = {:name => image_name }
-      image = Image.new(opts, &block)
-      @images << image
+    def add_bookmark(name, options={}, &block)
+      options.merge!(:name => name)
+      @bookmarks << Bookmark.new(options, &block)
     end #def
     
-    def add_text(name, data_field=nil, &block)
-      opts = {:name => name, :data_field => data_field}
-      text = Text.new(opts, &block)
-      @texts << text
+    def add_image(name, options={}, &block)
+      options.merge!(:name => name)
+      @images << Image.new(options, &block)
     end #def
     
-    def add_table(table_name, collection_field, opts={})
-      opts.merge!(:name => table_name, :collection_field => collection_field)
-      tab = Table.new(opts)
+    def add_table(name, options={})
+      options.merge!(:name => name)
+      tab = Table.new(options)
       @tables << tab
       yield(tab)
     end #def
     
-    def add_section(section_name, collection_field, opts={})
-      opts.merge!(:name => section_name, :collection_field => collection_field)
-      sec = Section.new(opts)
+    def add_section(name, options={})
+      options.merge!(:name => name)
+      sec = Section.new(options)
       @sections << sec
       yield(sec)
     end #def
     
-    
-    def get_collection_from_item(item, collection_field)
-    
-      return item[collection_field] if item.is_a?(Hash)
+    ######################################################################################
+    # populate
+    ######################################################################################
+    def populate(tree, options={})
       
-      if collection_field.is_a?(Array)
-        tmp = item.dup
-        collection_field.each do |f|
-          if f.is_a?(Hash)
-            tmp = tmp.send(f.keys[0], f.values[0])
-          else
-            tmp = tmp.send(f)
-          end
+      tree.to_h.each do |key, names|
+        case key
+        when :fields
+          names.each do |name|
+            add_field(name, options)
+          end #def
+        when :texts
+          names.each do |name|
+            add_text(name, options)
+          end #def
+        when :bookmarks
+          names.each do |name|
+            add_bookmark(name, options)
+          end #def
+        when :images
+          names.each do |name|
+            add_image(name, options)
+          end #def
+        when :tables
+          names.each do |name, table_tree|
+            add_table(name, options){|table| table.populate(table_tree, options)}
+          end #def
+        when :sections
+          names.each do |name, section_tree|
+            add_section(name, options){|section| section.populate(section_tree, options)}
+          end #def
+        end #case
+      end #each
+    end #def
+    
+    ######################################################################################
+    # items: get item collection form item
+    ######################################################################################
+    def items(item, field, procedure)
+    
+      ####################################################################################
+      # call proc before other alternatives
+      ####################################################################################
+      return procedure.call(item, field) if procedure
+      
+      ####################################################################################
+      # item class dependend call
+      ####################################################################################
+      return hash_value(item, field) if item.is_a?(Hash)
+      
+      ####################################################################################
+      # field class dependend call
+      ####################################################################################
+      case field
+        
+      when String, Symbol
+        if item.respond_to?(field.to_s.to_sym)
+          item.send(field.to_s.to_sym)
+          
+        elsif item.respond_to?(field.downcase.to_sym)
+          item.send(field.downcase.to_sym)
+          
+        else
+          []
         end
-        collection = tmp
-      elsif collection_field.is_a?(Hash)
-        collection = item.send(collection_field.keys[0], collection_field.values[0])
       else
-        collection = item.send(collection_field.to_sym)
-      end
-      
-      return collection
+        []
+      end #case
+    end #def
+    
+    ######################################################################################
+    #
+    # private
+    #
+    ######################################################################################
+    private
+    
+    def hash_value(hash, key)
+      hash[key.to_s]            || hash[key.to_sym] || 
+      hash[key.to_s.underscore] || hash[key.to_s.underscore.to_sym]
     end #def
     
   end #module

@@ -12,15 +12,15 @@ module ODFWriter
     # replace!
     #
     ######################################################################################
-    def replace!(doc, data_item = nil)
+    def replace!(doc, item = nil)
     
       nodes = find_bookmark_nodes(doc)
       return if nodes.blank?
       
-      value = get_value(data_item)
-      value = value.encode(universal_newline: true)
+      text = value(item)
+      text = text.encode(universal_newline: true)
       
-      text_node_array = value.split(/\n/).map{|a| Nokogiri::XML::Text.new(a, doc) }
+      text_node_array = text.split(/\n/).map{|a| Nokogiri::XML::Text.new(a, doc) }
       unless text_node_array.length == 1
         text_node_array = text_node_array.inject([]) do |collector, node| 
           collector << Nokogiri::XML::Node.new("line-break", doc) unless collector.empty?

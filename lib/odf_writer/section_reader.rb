@@ -20,19 +20,19 @@ module ODFWriter
     
     ######################################################################################
     #
-    # get_sections
+    # sections
     #
     ######################################################################################
-    def get_sections( doc )
-      get_nodes( doc ).keys
+    def sections( doc )
+      nodes( doc ).keys
     end #def
     
     ######################################################################################
     #
-    # get_nodes
+    # nodes
     #
     ######################################################################################
-    def get_nodes( doc )
+    def nodes( doc )
       doc.xpath(".//text:section").map{|node| [node.attr("text:name"), node] }.to_h
     end #def
     

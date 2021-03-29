@@ -36,19 +36,19 @@ module ODFWriter
     # add_style
     #
     ######################################################################################
-    def add_style( xml )
-      ns                                   = xml.collect_namespaces
-      automatic_styles                     = xml.at("//office:automatic-styles", ns)
-      font_declarations                    = xml.at("//office:font-face-decls", ns)
+    def add_style( doc )
+      ns                                   = doc.collect_namespaces
+      automatic_styles                     = doc.at("//office:automatic-styles", ns)
+      font_declarations                    = doc.at("//office:font-face-decls", ns)
       
       @styles.each do |style|
         
         @font = nil # will be set in create_style
         
-        automatic_styles                     << create_style( xml, style ) if automatic_styles.present?
+        automatic_styles                  << create_style( doc, style ) if automatic_styles.present?
         
         if @font.present?
-          font_declarations                  << create_font( xml, @font ) if font_declarations.present?
+          font_declarations               << create_font( doc, @font ) if font_declarations.present?
         end
       end
       

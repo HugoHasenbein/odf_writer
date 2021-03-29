@@ -20,20 +20,10 @@ module ODFWriter
     
     ######################################################################################
     #
-    # get_image_names
-    #
-    ######################################################################################
-    def get_image_names(doc)
-      doc.xpath("//draw:frame[draw:image]").map{|node| node.attr("draw:name")}
-     #doc.xpath("./draw:frame[draw:image]").map{|node| node.attr("draw:name")}
-    end #def
-    
-    ######################################################################################
-    #
     # get_paths: limit to paths with ancestors 'text '(content.xml) and master-styles (styles.xml)
     #
     ######################################################################################
-    def get_paths( doc, root=:root)
+    def paths( root, doc)
       
       # find nodes with matching field elements matching [BOOKMARK] pattern
       nodes = doc.xpath("//draw:frame[draw:image]").select{|node| scan(node).present? }
@@ -58,7 +48,7 @@ module ODFWriter
       if name 
         node.attr("draw:name") == name.upcase ? [node.attr("draw:name")] : []
       else
-        node.attr("draw:name")
+        [node.attr("draw:name")]
       end
     end #def
   end #class

@@ -9,17 +9,19 @@ module ODFWriter
   
     include Nested
     
-    attr_accessor :collection
+    attr_accessor :name, :collection, :proc
     
     ######################################################################################
     #
     # initialize
     #
     ######################################################################################
-    def initialize(opts)
-      @name          = opts[:name]
-      @field         = opts[:field]
-      @collection    = opts[:collection]
+    def initialize(options)
+      @name          = options[:name]
+      @field         = options[:field]
+      @collection    = options[:collection]
+      @proc          = options[:proc]
+      @key           = @field || @name
          
       @fields        = []
       @texts         = []
@@ -28,8 +30,8 @@ module ODFWriter
       @bookmarks     = []
       
       @template_rows = []
-      @header        = opts[:header] || false
-      @skip_if_empty = opts[:skip_if_empty] || false
+      @header        = options[:header] || false
+      @skip_if_empty = options[:skip_if_empty] || false
       
     end #def
     
@@ -46,14 +48,14 @@ module ODFWriter
       
       @header = table.xpath("table:table-header-rows").empty? ? @header : false
       
-      @collection = get_collection_from_item(row, @field) if row
+      @collection = items(row, @key, @proc) if row
       
       if @skip_if_empty && @collection.empty?
         table.remove
         return
       end
       
-      @collection.each do |data_item|
+      @collection.each do |item|
       
         new_node = get_next_row
         #
@@ -62,15 +64,10 @@ module ODFWriter
         #
         table.add_child(new_node)
         
-        @tables.each    { |t| t.replace!(new_node, manifest, file, data_item) }
-        
-        @texts.each     { |t| t.replace!(new_node, data_item) }
-        
-        @fields.each    { |f| f.replace!(new_node, data_item) }
-        
-        @images.each    { |f| f.replace!(new_node, manifest, file, data_item) }
-        
-        #table.add_child(new_node)
+        @tables.each    { |t| t.replace!(new_node, manifest, file, item) }
+        @texts.each     { |t| t.replace!(new_node, item) }
+        @fields.each    { |f| f.replace!(new_node, item) }
+        @images.each    { |f| f.replace!(new_node, manifest, file, item) }
         
       end
       Image.unique_image_names( doc) if @images.present?
