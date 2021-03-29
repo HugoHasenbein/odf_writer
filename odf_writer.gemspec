@@ -7,11 +7,11 @@ Gem::Specification.new do |s|
   s.version = ODFWriter::VERSION
 
   s.authors = ["Stephan Wenzel"]
-  s.description = %q{Generates ODF files, given a template (.odt) and data, replacing tags}
+  s.description = %q{Generates ODF files, given a template (.odt) and data, replacing tags. Based on odf-report gem}
   s.email = %q{stephan.wenzel@drwpatent.de}
   s.homepage = %q{https://github.com/HugoHasenbein/odf_writer}
   s.rubygems_version = %q{1.3.7}
-  s.summary = %q{Generates ODF files, given a template (.odt) and data, replacing tags}
+  s.summary = %q{Generates ODF files, given a template (.odt) and data, replacing tags. Based on odf-report gem}
 
   s.files         = `git ls-files -z`.split("\x0")
   s.executables   = s.files.grep(%r{^bin/}) { |f| File.basename(f) }

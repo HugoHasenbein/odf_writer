@@ -1,0 +1,128 @@
+module ODFWriter
+
+  ########################################################################################
+  #
+  # Nested: provide data to nestable items
+  #
+  ########################################################################################
+  module Nested
+  
+    def add_field(name, options={}, &block)
+      options.merge!(:name => name)
+      @fields << Field.new(options, &block)
+    end #def
+    alias_method :add_column, :add_field
+    
+    def add_text(name, options={}, &block)
+      options.merge!(:name => name)
+      @texts << Text.new(options, &block)
+    end #def
+    
+    def add_bookmark(name, options={}, &block)
+      options.merge!(:name => name)
+      @bookmarks << Bookmark.new(options, &block)
+    end #def
+    
+    def add_image(name, options={}, &block)
+      options.merge!(:name => name)
+      @images << Image.new(options, &block)
+    end #def
+    
+    def add_table(name, options={})
+      options.merge!(:name => name)
+      tab = Table.new(options)
+      @tables << tab
+      yield(tab)
+    end #def
+    
+    def add_section(name, options={})
+      options.merge!(:name => name)
+      sec = Section.new(options)
+      @sections << sec
+      yield(sec)
+    end #def
+    
+    ######################################################################################
+    # populate
+    ######################################################################################
+    def populate(tree, options={})
+      
+      tree.to_h.each do |key, names|
+        case key
+        when :fields
+          names.each do |name|
+            add_field(name, options)
+          end #def
+        when :texts
+          names.each do |name|
+            add_text(name, options)
+          end #def
+        when :bookmarks
+          names.each do |name|
+            add_bookmark(name, options)
+          end #def
+        when :images
+          names.each do |name|
+            add_image(name, options)
+          end #def
+        when :tables
+          names.each do |name, table_tree|
+            add_table(name, options){|table| table.populate(table_tree, options)}
+          end #def
+        when :sections
+          names.each do |name, section_tree|
+            add_section(name, options){|section| section.populate(section_tree, options)}
+          end #def
+        end #case
+      end #each
+    end #def
+    
+    ######################################################################################
+    # items: get item collection form item
+    ######################################################################################
+    def items(item, field, procedure)
+    
+      ####################################################################################
+      # call proc before other alternatives
+      ####################################################################################
+      return procedure.call(item, field) if procedure
+      
+      ####################################################################################
+      # item class dependend call
+      ####################################################################################
+      return hash_value(item, field) if item.is_a?(Hash)
+      
+      ####################################################################################
+      # field class dependend call
+      ####################################################################################
+      case field
+        
+      when String, Symbol
+        if item.respond_to?(field.to_s.to_sym)
+          item.send(field.to_s.to_sym)
+          
+        elsif item.respond_to?(field.downcase.to_sym)
+          item.send(field.downcase.to_sym)
+          
+        else
+          []
+        end
+      else
+        []
+      end #case
+    end #def
+    
+    ######################################################################################
+    #
+    # private
+    #
+    ######################################################################################
+    private
+    
+    def hash_value(hash, key)
+      hash[key.to_s]            || hash[key.to_sym] || 
+      hash[key.to_s.underscore] || hash[key.to_s.underscore.to_sym]
+    end #def
+    
+  end #module
+end #module
