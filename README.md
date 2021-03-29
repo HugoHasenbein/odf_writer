@@ -1,7 +1,8 @@
 
-# ODF-REPORT
+# ODF WRITER (EXPERIMENTAL)
 
 Gem for generating .odt files by making strings, images, tables and sections replacements in a previously created .odt file.
+Based on ODF-WRITER, partially rewritten
 
 ### NEW
 
