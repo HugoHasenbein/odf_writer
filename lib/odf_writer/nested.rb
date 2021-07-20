@@ -126,10 +126,10 @@ module ODFWriter
           item.send(field.downcase.to_sym)
           
         else
-          ["hello"]
+          []
         end
       else
-        ["bello"]
+        []
       end #case
     end #def
     
