@@ -101,6 +101,7 @@ module ODFWriter
         key
       when Hash
         hash_value(item, key)
+        "hello"
       else
         item_field(item, key)
       end
