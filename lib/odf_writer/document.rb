@@ -289,7 +289,7 @@ module ODFWriter
             if list.include?(name)
               add_table(file, name, coll, options){|table| table.populate(table_tree, options)}
             elsif object.respond_to?(name.underscore.to_sym)
-              add_table(file, name, object.send(name.underscore.to_sym), options){|table| table.populate(table_tree, options)}
+              add_table(file, name, arrify(object.send(name.underscore.to_sym)), options){|table| table.populate(table_tree, options)}
             end
           end #def
         when :sections
@@ -297,7 +297,7 @@ module ODFWriter
             if list.include?(name)
               add_section(file, name, coll, options){|section| section.populate(section_tree, options)} if list.include?(name)
             elsif object.respond_to?(name.underscore.to_sym)
-              add_section(file, name, object.send(name.underscore.to_sym), options){|section| section.populate(section_tree, options)}
+              add_section(file, name, arrify(object.send(name.underscore.to_sym)), options){|section| section.populate(section_tree, options)}
             end
           end #def
         when :files
@@ -355,6 +355,17 @@ module ODFWriter
     def deep_merge(left, right)
         merger = proc { |key, v1, v2| Hash === v1 && Hash === v2 ? v1.merge(v2, &merger) : [:undefined, nil, :nil].include?(v2) ? v1 : v1 + v2 }
         left.merge(right, &merger)
+    end #def
+    
+    def arrify(obj)
+      case obj
+      when Array
+        obj
+      when Hash
+        [obj]
+      else
+        obj.respond_to?(:to_a) ? obj.to_a : [obj]
+      end
     end #def
     
   end #class

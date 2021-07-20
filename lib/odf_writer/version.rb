@@ -20,5 +20,10 @@
 #
 
 module ODFWriter
-  VERSION = "1.0.1"
+  # 1.0.2 
+  #       - added arrify to document.rb
+  #
+  # 1.0.1 initial commit
+  #
+  VERSION = "1.0.2"
 end #module
