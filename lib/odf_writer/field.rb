@@ -163,12 +163,12 @@ module ODFWriter
       s.to_s.gsub("\n", "<text:line-break/>").gsub("<br.*?>", "<text:line-break/>")
     end #def
     
-    def deep_fields(field)
-      fields = field.split(/\./)
+    def deep_fields(fs)
+      fs.split(/\./)
     end #def
     
-    def deep_try(item, field)
-      deep_fields(field).inject(item) {|obj,f| obj.try(f.to_s.underscore.to_sym)}
+    def deep_try(item, f)
+      deep_fields(f).inject(item) {|obj,f| obj.try(f.to_s.underscore.to_sym)}
     end #def
     
   end #class
