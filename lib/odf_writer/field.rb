@@ -100,10 +100,10 @@ module ODFWriter
       when NilClass
         key
       when Hash
-        hash_value(item, key) || item.dig(deep_fields(field))
+        hash_value(item, key) || item.dig(deep_fields(key))
       else
         #item_field(item, key)
-        deep_try(item, field)
+        deep_try(item, key)
       end
     end #def
     
