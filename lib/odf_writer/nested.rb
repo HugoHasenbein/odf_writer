@@ -106,12 +106,12 @@ module ODFWriter
       ####################################################################################
       # call proc before other alternatives
       ####################################################################################
-      return procedure.call(item, field) if procedure
+      return arrify(procedure.call(item, field)) if procedure
       
       ####################################################################################
       # item class dependend call
       ####################################################################################
-      return hash_value(item, field) if item.is_a?(Hash)
+      return arrify(hash_value(item, field)) if item.is_a?(Hash)
       
       ####################################################################################
       # field class dependend call
@@ -120,10 +120,10 @@ module ODFWriter
         
       when String, Symbol
         if item.respond_to?(field.to_s.to_sym)
-          item.send(field.to_s.to_sym)
+          arrify(item.send(field.to_s.to_sym))
           
         elsif item.respond_to?(field.downcase.to_sym)
-          item.send(field.downcase.to_sym)
+          arrify(item.send(field.downcase.to_sym))
           
         else
           []
@@ -143,6 +143,13 @@ module ODFWriter
     def hash_value(hash, key)
       hash[key.to_s]            || hash[key.to_sym] || 
       hash[key.to_s.underscore] || hash[key.to_s.underscore.to_sym]
+    end #def
+    
+    def arrify(obj)
+      return  obj      if obj.is_a?(Array)
+      return [obj]     if obj.is_a?(Hash)
+      return  obj.to_a if obj.respond_to?(:to_a)
+      return [obj]
     end #def
     
   end #module
