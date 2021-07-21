@@ -100,9 +100,10 @@ module ODFWriter
       when NilClass
         key
       when Hash
-        hash_value(item, key)
+        hash_value(item, key) || item.dig(deep_fields(field))
       else
-        item_field(item, key)
+        #item_field(item, key)
+        deep_try(item, field)
       end
     end #def
     
@@ -160,6 +161,14 @@ module ODFWriter
       return "" unless s
       s = s.encode(universal_newline: true)
       s.to_s.gsub("\n", "<text:line-break/>").gsub("<br.*?>", "<text:line-break/>")
+    end #def
+    
+    def deep_fields(field)
+      fields = field.split(/\./)
+    end #def
+    
+    def deep_try(item, field)
+      deep_fields(field).inject(item) {|obj,f| obj.try(f.to_s.underscore.to_sym)}
     end #def
     
   end #class
